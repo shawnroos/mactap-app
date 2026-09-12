@@ -14,14 +14,15 @@ optionally, OSC for Max for Live.
 Needs the Command Line Tools only. No Accessibility or Input Monitoring
 grant — those exist for the app's shortcut actions, not the sensor.
 
-A MIDI source named **MacTap** appears while it runs. Every hit sends
-note 36 (C1) on channel 1 with velocity from the impact strength, and a
-note-off 30 ms later.
+A MIDI source named **MacTap** appears while it runs. A knock on the
+left palm rest sends note 36 (C1), on the right note 38 (D1), channel 1,
+velocity from the impact strength, note-off 30 ms later. Two pads, no
+setup. `--no-sides` makes it one pad at ~7 ms latency instead of ~33.
 
 ## Ableton, no Max
 
 1. Preferences → Link, Tempo & MIDI → Input **MacTap** → Track On.
-2. MIDI track, monitor **In**, Drum Rack with a sound on C1.
+2. MIDI track, monitor **In**, Drum Rack with sounds on C1 and D1.
 3. Knock.
 
 ## Max for Live
@@ -38,8 +39,7 @@ Each hit sends one message:
 /mactap/hit <side:int 0=L 1=R> <velocity:int 1-127> <peak:float g> <latency:float ms>
 ```
 
-Every hit reads `L` and uses `--note` unless `--sides` is on (or the
-device sends `/mactap/sides 1`). The side comes from the gyro: a knock
+The side comes from the gyro: a knock
 tilts the chassis, and the sign of the roll rate in the first few
 milliseconds read 39/40 labelled knocks correctly, with the lateral
 accelerometer as fallback for the rest.
@@ -102,7 +102,7 @@ Settings are not saved; the device's own parameter state restores them
 when the set loads, provided the dials send their value on load
 (`[loadbang]` → `[live.dial]` outputs its stored value).
 
-## Zones
+## Zones (experimental)
 
 More than left/right: the bridge can learn where on the chassis a knock
 landed and send a different note per spot.
@@ -131,14 +131,16 @@ one MacBook, front-left / front-right / the whole hinge strip read
 back is one zone. Different spots may separate on a different machine;
 the confusion table is the test.
 
-Zones use the 32 ms side hold, so latency is ~33 ms.
+Zones use the 32 ms side hold, so latency is ~33 ms. Across sessions
+left/right has held 20/20; zones have not yet — treat them as a
+playground, not a pad layout.
 
 ## Options
 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--note N` | 36 | note for a hit |
-| `--sides` | off | left/right from the gyro (a knock tilts the chassis); right hits use `--note-right` (38). Costs latency: the capture holds `--side-hold` ms to read the side, against ~6 ms without it |
+| `--sides` / `--no-sides` | on | left/right from the gyro (a knock tilts the chassis); right hits use `--note-right` (38). Reading the side holds each hit `--side-hold` ms; `--no-sides` is one pad at ~7 ms |
 | `--invert` | off | swap left and right if your chassis reads mirrored |
 | `--side-hold MS` | 32 | how long a hit is held before its side is read. Measured: 32 ms read 20/20, 16 ms was near random — the tilt the gyro sees builds over ~30 ms |
 | `--channel C` | 1 | MIDI channel |

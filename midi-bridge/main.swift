@@ -15,7 +15,7 @@ struct Options {
     var gateMs: Double = 30
     var sensitivity: Double = 0.9
     var refractoryMs: Double = 45
-    var classifySides = false
+    var classifySides = true
     var invertSides = false
     var sideHoldMs: Double = 32
     var magFloor: Double = 0.012
@@ -43,6 +43,7 @@ struct Options {
             case "--sensitivity": o.sensitivity = Double(next() ?? "0.9") ?? 0.9
             case "--refractory":  o.refractoryMs = Double(next() ?? "45") ?? 45
             case "--sides":       o.classifySides = true
+            case "--no-sides":    o.classifySides = false
             case "--invert":      o.invertSides = true
             case "--side-hold":   o.sideHoldMs = Double(next() ?? "32") ?? 32
             case "--floor":       o.magFloor = Double(next() ?? "0.012") ?? 0.012
@@ -72,7 +73,8 @@ struct Options {
                 mactap-midi [options]
                   --note N          MIDI note for a hit (default 36 = C1)
                   --note-right N    note for right-side hits with --sides (default 38)
-                  --sides           classify left/right (off: every hit is --note)
+                  --sides           left/right → --note / --note-right (default on)
+                  --no-sides        one pad: every hit is --note, ~7 ms instead of ~33 ms
                   --invert          swap left and right
                   --side-hold MS    how long a hit is held to read its side with --sides (default 32; 16 misreads)
                   --channel C       MIDI channel 1-16 (default 1)
