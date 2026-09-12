@@ -12,6 +12,7 @@ swiftc -O \
     midi-bridge/MIDIOut.swift \
     midi-bridge/OSCOut.swift \
     midi-bridge/OSCIn.swift \
+    midi-bridge/Zones.swift \
     midi-bridge/main.swift \
     -framework CoreMIDI -framework IOKit -framework AppKit -framework QuartzCore
 echo "built build/mactap-midi"

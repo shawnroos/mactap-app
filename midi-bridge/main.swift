@@ -26,6 +26,9 @@ struct Options {
     var calibrate = false
     var selfTest = false
     var controlPort: UInt16 = 7401
+    var learnSpec: String? = nil
+    var learnCount = 10
+    var zonesPath: String? = nil
 
     static func parse(_ args: [String]) -> Options {
         var o = Options()
@@ -49,6 +52,15 @@ struct Options {
             case "--calibrate":   o.calibrate = true
             case "--test":        o.selfTest = true
             case "--control":     o.controlPort = UInt16(next() ?? "7401") ?? 7401
+            case "--learn":       o.learnSpec = next() ?? "front-left:36,front-right:38,back:42"
+            case "--learn-count": o.learnCount = max(3, Int(next() ?? "10") ?? 10)
+            case "--zones":
+                // optional path: "--zones" alone uses the default file
+                if i + 1 < args.count, !args[i + 1].hasPrefix("--") {
+                    o.zonesPath = args[i + 1]; i += 1
+                } else {
+                    o.zonesPath = ZoneModel.defaultPath.path
+                }
             case "--osc":
                 let spec = next() ?? "127.0.0.1:7400"
                 let parts = spec.split(separator: ":")
@@ -75,6 +87,10 @@ struct Options {
                   --calibrate       print every hit's peak, latency and sample rate
                   --test            fire one synthetic hit at startup (checks MIDI/OSC plumbing)
                   --control PORT    listen for OSC settings on this port (default 7401; 0 = off)
+                  --learn SPEC      learn chassis zones: "front-left:36,front-right:38,back:42"
+                                    knock each zone in turn; saves ~/.mactap-zones.json, then goes live
+                  --learn-count N   knocks per zone while learning (default 10)
+                  --zones [FILE]    use learned zones (default ~/.mactap-zones.json); implies --sides
                 """)
                 exit(0)
             default:
@@ -99,6 +115,9 @@ if opts.midi && midi == nil {
 }
 let osc: OSCOut? = opts.osc.flatMap { OSCOut(host: $0.host, port: $0.port) }
 
+// Colour only when a person is watching; logs stay plain.
+let tty = isatty(STDOUT_FILENO) == 1
+
 let sensor = SensorManager()
 let detector = TapDetector(sensor: sensor)
 detector.musicalMode = true
@@ -107,6 +126,41 @@ detector.refractoryPeriod = opts.refractoryMs / 1000
 detector.classifySides = opts.classifySides
 detector.invertSides = opts.invertSides
 detector.sideCaptureTime = opts.sideHoldMs / 1000
+
+// Zones need the 32 ms attack window the side read uses.
+var zoneModel: ZoneModel? = nil
+var learning: (zone: Int, since: Double)? = nil
+let zoneFile = URL(fileURLWithPath: opts.zonesPath ?? ZoneModel.defaultPath.path)
+if let spec = opts.learnSpec {
+    let zones = parseZoneSpec(spec)
+    guard zones.count >= 2 else {
+        FileHandle.standardError.write("--learn needs at least two zones\n".data(using: .utf8)!)
+        exit(2)
+    }
+    zoneModel = ZoneModel(zones: zones)
+    detector.classifySides = true
+} else if opts.zonesPath != nil {
+    guard let model = ZoneModel.load(from: zoneFile), model.isFitted else {
+        FileHandle.standardError.write("no learned zones at \(zoneFile.path) — run with --learn first\n".data(using: .utf8)!)
+        exit(1)
+    }
+    model.fit()
+    zoneModel = model
+    detector.classifySides = true
+}
+
+func zoneColour(_ i: Int) -> String {
+    guard tty else { return "" }
+    return ["\u{1B}[1;36m", "\u{1B}[1;35m", "\u{1B}[1;33m", "\u{1B}[1;32m", "\u{1B}[1;34m"][i % 5]
+}
+func zoneLabel(_ i: Int, _ name: String, unsure: Bool) -> String {
+    tty ? "\(zoneColour(i))\(name)\(unsure ? "?" : "")\u{1B}[0m" : name + (unsure ? "?" : "")
+}
+func learnPrompt(_ i: Int) {
+    guard let model = zoneModel else { return }
+    print("\n>> knock \(zoneLabel(i, model.zones[i].name, unsure: false)) \(opts.learnCount) times")
+    fflush(stdout)
+}
 detector.ignoreWhileTyping = false
 
 func velocity(for magnitude: Double) -> UInt8 {
@@ -152,8 +206,6 @@ if opts.controlPort != 0 && control == nil {
 var hitCount = 0
 var lastHitHost: Double = 0
 
-// Colour only when a person is watching; logs stay plain.
-let tty = isatty(STDOUT_FILENO) == 1
 func sideLabel(_ side: TapSide) -> String {
     switch (side, tty) {
     case (.left, true):  return "\u{1B}[1;36mL\u{1B}[0m"
@@ -164,8 +216,40 @@ func sideLabel(_ side: TapSide) -> String {
 }
 
 detector.onHit = { hit in
-    let note = hit.side == .right ? live.noteRight : live.noteLeft
+    var note = hit.side == .right ? live.noteRight : live.noteLeft
     let vel = velocity(for: hit.peakMagnitude)
+    var label = sideLabel(hit.side)
+
+    if let l = learning, let model = zoneModel {
+        // Knocks in the first 1.5 s after a prompt are the hand moving over.
+        if hit.hostTime - l.since < 1.5 { return }
+        model.zones[l.zone].samples.append(ZoneFeatures(hit: hit).vector)
+        let n = model.zones[l.zone].samples.count
+        print("   \(zoneLabel(l.zone, model.zones[l.zone].name, unsure: false)) \(n)/\(opts.learnCount)")
+        fflush(stdout)
+        if n >= opts.learnCount {
+            if l.zone + 1 < model.zones.count {
+                learning = (l.zone + 1, hit.hostTime)
+                learnPrompt(l.zone + 1)
+            } else {
+                learning = nil
+                model.fit()
+                print("\n" + model.confusionReport())
+                do {
+                    try model.save(to: zoneFile)
+                    print("saved \(zoneFile.path)\nzones live — knock away\n")
+                } catch {
+                    print("could not save \(zoneFile.path): \(error)")
+                }
+                fflush(stdout)
+            }
+        }
+        return
+    }
+    if let model = zoneModel, let m = model.classify(ZoneFeatures(hit: hit)) {
+        note = m.zone.note
+        label = zoneLabel(m.index, m.zone.name, unsure: m.margin < 0.2)
+    }
 
     midi?.noteOn(channel: opts.channel, note: note, velocity: vel)
     if let midi {
@@ -187,7 +271,7 @@ detector.onHit = { hit in
     let parked = hit.sampleRateHz > 0 && hit.sampleRateHz < 450 ? "  PARKED" : ""
     if opts.calibrate {
         print(String(format: "hit %4d  %@  peak %.4f g  vel %3d  snr %5.1f  lat %5.1f ms  gap %7.1f ms  %4.0f Hz%@",
-                     hitCount, sideLabel(hit.side), hit.peakMagnitude, Int(vel),
+                     hitCount, label, hit.peakMagnitude, Int(vel),
                      hit.snr, hit.latency * 1000, gapMs, hit.sampleRateHz, parked))
         if live.classifySides {
             // Tilt direction: 0° = pure +Y roll (left), ±180° = right, +90° = +X pitch.
@@ -197,7 +281,7 @@ detector.onHit = { hit in
                          hit.attackX, hit.peakX, hit.attackZ, hit.attackGX, hit.attackGY, hit.attackGZ, tilt, angle))
         }
     } else {
-        print(String(format: "hit  %@  vel %3d  %4.0f Hz%@", sideLabel(hit.side), Int(vel), hit.sampleRateHz, parked))
+        print(String(format: "hit  %@  vel %3d  %4.0f Hz%@", label, Int(vel), hit.sampleRateHz, parked))
     }
     fflush(stdout)
 }
@@ -217,7 +301,14 @@ if let osc { print("  OSC: \(osc.host):\(osc.port)  /mactap/hit <side:int> <vel:
 if let control { print("  control: udp \(control.port)  /mactap/sensitivity|floor|ceil|curve|gate|note|note-right|refractory|sides|invert|side-hold <float>") }
 print("  velocity: floor \(opts.magFloor) g → 1, ceil \(opts.magCeil) g → 127, curve \(opts.curve)")
 if opts.calibrate { print("  calibrate: tap soft / medium / hard; watch peak, lat and Hz. Ctrl-C to stop.") }
+if let model = zoneModel, learning == nil {
+    print("  zones: " + model.zones.enumerated().map { "\(zoneLabel($0, $1.name, unsure: false)) → \($1.note)" }.joined(separator: "  "))
+}
 fflush(stdout)
+if opts.learnSpec != nil {
+    learning = (0, CACurrentMediaTime())
+    learnPrompt(0)
+}
 
 if opts.selfTest {
     // 1.5 s: the sensor's first rate estimate lands at ~1 s, so the test hit

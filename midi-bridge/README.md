@@ -102,6 +102,37 @@ Settings are not saved; the device's own parameter state restores them
 when the set loads, provided the dials send their value on load
 (`[loadbang]` → `[live.dial]` outputs its stored value).
 
+## Zones
+
+More than left/right: the bridge can learn where on the chassis a knock
+landed and send a different note per spot.
+
+```
+./build/mactap-midi --learn "front-left:36,front-right:38,back:42"
+```
+
+It prompts for each zone in turn; knock it 10 times (`--learn-count`),
+firmly, and wait for the next prompt. At the end it prints a confusion
+table — rows are where you knocked, columns what it read — saves
+`~/.mactap-zones.json`, and goes live. Only trust a zone whose row is
+clean. Afterwards:
+
+```
+./build/mactap-midi --zones
+```
+
+A `?` after the zone name means the knock sat between two fingerprints.
+
+What separates spots is not the direction of the tilt (that alone read
+19/40) but how much the chassis tilts per g of knock — in effect the
+distance from the sensor — plus the vertical share of the impact. On
+one MacBook, front-left / front-right / the whole hinge strip read
+39/40; splitting the back into left and right did not (36/40), so the
+back is one zone. Different spots may separate on a different machine;
+the confusion table is the test.
+
+Zones use the 32 ms side hold, so latency is ~33 ms.
+
 ## Options
 
 | Flag | Default | Meaning |
@@ -121,6 +152,9 @@ when the set loads, provided the dials send their value on load
 | `--calibrate` | — | print peak, SNR, latency, gap and sample rate per hit |
 | `--test` | — | fire one synthetic hit at start to check the plumbing |
 | `--control PORT` | 7401 | OSC settings listener; 0 turns it off |
+| `--learn SPEC` | — | learn zones, `"name:note,name:note,…"`; saves `~/.mactap-zones.json` |
+| `--learn-count N` | 10 | knocks per zone while learning |
+| `--zones [FILE]` | — | classify by learned zones (default file); implies `--sides` |
 
 ## Calibrating
 
