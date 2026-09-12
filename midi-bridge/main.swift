@@ -166,15 +166,16 @@ if opts.selfTest {
     }
 }
 
-// Sample-rate watchdog: prints once a second so parking is visible even
-// between hits. Silent when the rate is healthy unless calibrating.
+// Sample-rate watchdog: one line at start, then only on park/recover.
 var lastReportedHz: Double = -1
 let watchdog = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
 watchdog.schedule(deadline: .now() + 1, repeating: 1)
 watchdog.setEventHandler {
     let hz = sensor.sampleRateHz
     let parked = hz < 450
-    if opts.calibrate || parked != (lastReportedHz < 450) {
+    // Every hit line already carries the rate, so the watchdog speaks only
+    // when the sensor parks or recovers.
+    if lastReportedHz < 0 || parked != (lastReportedHz < 450) {
         print(String(format: "rate %4.0f Hz%@", hz, parked ? "  PARKED" : ""))
         fflush(stdout)
     }
