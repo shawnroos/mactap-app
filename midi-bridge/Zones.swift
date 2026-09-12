@@ -31,6 +31,23 @@ struct Zone: Codable {
     var note: UInt8
     var samples: [[Double]] = []
     var centroid: [Double] = [0, 0, 0]
+    /// Peak g of each learning knock, kept so unequal strength across zones is visible.
+    var peaks: [Double] = []
+
+    init(name: String, note: UInt8) {
+        self.name = name
+        self.note = note
+    }
+
+    // Files written before `peaks` existed must still load.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        note = try c.decode(UInt8.self, forKey: .note)
+        samples = try c.decodeIfPresent([[Double]].self, forKey: .samples) ?? []
+        centroid = try c.decodeIfPresent([Double].self, forKey: .centroid) ?? [0, 0, 0]
+        peaks = try c.decodeIfPresent([Double].self, forKey: .peaks) ?? []
+    }
 }
 
 struct ZoneMatch {
@@ -129,6 +146,19 @@ final class ZoneModel: Codable {
             total += table[i].reduce(0, +)
         }
         lines.append("  \(right)/\(total) correct")
+
+        // Tilt per g is not linear in g, so a zone knocked harder than the
+        // others is learned partly as "hard", and mis-reads later.
+        let medians = zones.map { z -> Double in
+            let p = z.peaks.sorted()
+            return p.isEmpty ? 0 : p[p.count / 2]
+        }
+        if let lo = medians.min(), let hi = medians.max(), lo > 0 {
+            lines.append("  knock strength, median g per zone: " + zip(zones, medians).map { String(format: "%@ %.3f", $0.name, $1) }.joined(separator: ", "))
+            if hi / lo > 1.3 {
+                lines.append("  WARNING: zones were knocked at different strengths (\(String(format: "%.0f", (hi / lo - 1) * 100))% apart); the model will partly read strength as place. Re-learn knocking every zone the same.")
+            }
+        }
         return lines.joined(separator: "\n")
     }
 

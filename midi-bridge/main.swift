@@ -224,8 +224,9 @@ detector.onHit = { hit in
         // Knocks in the first 1.5 s after a prompt are the hand moving over.
         if hit.hostTime - l.since < 1.5 { return }
         model.zones[l.zone].samples.append(ZoneFeatures(hit: hit).vector)
+        model.zones[l.zone].peaks.append(hit.peakMagnitude)
         let n = model.zones[l.zone].samples.count
-        print("   \(zoneLabel(l.zone, model.zones[l.zone].name, unsure: false)) \(n)/\(opts.learnCount)")
+        print(String(format: "   %@ %d/%d   %.3f g", zoneLabel(l.zone, model.zones[l.zone].name, unsure: false) as NSString, n, opts.learnCount, hit.peakMagnitude))
         fflush(stdout)
         if n >= opts.learnCount {
             if l.zone + 1 < model.zones.count {
