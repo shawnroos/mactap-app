@@ -19,6 +19,26 @@ struct DetectedGesture: Sendable, Equatable {
     }
 }
 
+/// One impulse in percussion mode.
+struct MusicalHit: Sendable {
+    /// Sensor clock at the first sample of the attack — the true note onset.
+    let onsetTimestamp: Double
+    /// Sensor clock when the capture closed and this hit was emitted.
+    let emitTimestamp: Double
+    /// `CACurrentMediaTime()` at emit, for measuring end-to-end latency.
+    let hostTime: Double
+    let side: TapSide
+    let peakMagnitude: Double
+    let peakX: Double
+    let noiseFloor: Double
+    let snr: Double
+    /// Accelerometer rate at the moment of the hit. Well under ~800 means the
+    /// SPU had parked and the attack peak is probably under-sampled.
+    let sampleRateHz: Double
+
+    var latency: Double { emitTimestamp - onsetTimestamp }
+}
+
 /// Chassis-tap classifier on the undocumented SPU IMU (~800 Hz accel + gyro).
 ///
 /// Onset follows Bonk (EMA delta, no minimum width). Side follows Knocker, but
@@ -41,11 +61,22 @@ final class TapDetector: ObservableObject {
     var ignoreWhileTyping = true
     var classifySides = false
 
+    /// Percussion mode. Each impulse fires `onHit` the moment its capture closes
+    /// (~8-15 ms), instead of waiting `groupingWindow` to see if a second tap
+    /// makes it a double. Also drops the typing and burst lockouts, which a fast
+    /// roll trips as a matter of course. `onGesture` never fires in this mode.
+    var musicalMode = false
+
+    /// Fired from `queue`, not the main queue — a main-queue hop adds run-loop
+    /// jitter that is audible as timing slop.
+    var onHit: ((MusicalHit) -> Void)?
+
     private var cancellables = Set<AnyCancellable>()
     private weak var sensor: SensorManager?
     private let queue = DispatchQueue(label: "app.mactap.detector", qos: .userInteractive)
 
-    private let refractoryPeriod: Double = 0.07
+    /// 0.07 caps the roll at ~14 hits/s, which 16ths above 200 bpm exceed.
+    var refractoryPeriod: Double = 0.07
     private let maxPulseWidth: Double = 0.12
     private let minCaptureTime: Double = 0.032
     private let attackWindow: Double = 0.034
@@ -84,6 +115,12 @@ final class TapDetector: ObservableObject {
     private var typingUntil: Double = -1
     private var lastUIPublish: Double = 0
     private var lastKeyTime: Double = -10
+
+    /// Own rate estimate, counted on this queue. Reading SensorManager's
+    /// published rate would be a cross-thread read of a main-queue property.
+    private var rateTick: Double = 0
+    private var emaDt: Double = 0
+    private var localHz: Double = 0
 
     private var tapThreshold: Double {
         let minT = 0.012
@@ -127,6 +164,18 @@ final class TapDetector: ObservableObject {
     private func process(_ sample: SensorSample) {
         let mag = sample.magnitude
         let now = sample.timestamp
+
+        // EMA of the inter-sample interval, not a per-second bucket: it must
+        // still read "parked" on the first hit after an idle, before the
+        // keep-alive re-wake has had a chance to land.
+        if rateTick > 0 {
+            let dt = now - rateTick
+            if dt > 0 {
+                emaDt = emaDt > 0 ? 0.05 * dt + 0.95 * emaDt : dt
+                localHz = 1.0 / emaDt
+            }
+        }
+        rateTick = now
 
         pushHistory(x: sample.x, t: now)
 
@@ -258,22 +307,24 @@ final class TapDetector: ObservableObject {
             publishReject("low SNR")
             return
         }
-        if keyedRecently && abs(meanAttackZ) > abs(meanAttackX) * 3.8 && attackAbsX < 0.006 {
-            publishReject("vertical (typing)")
-            return
-        }
-        if inTypingLockout {
-            publishReject("typing lockout")
-            return
-        }
+        if !musicalMode {
+            if keyedRecently && abs(meanAttackZ) > abs(meanAttackX) * 3.8 && attackAbsX < 0.006 {
+                publishReject("vertical (typing)")
+                return
+            }
+            if inTypingLockout {
+                publishReject("typing lockout")
+                return
+            }
 
-        impulseTimes.append(now)
-        impulseTimes = impulseTimes.filter { now - $0 < typingBurstWindow }
-        if impulseTimes.count >= 6 {
-            typingUntil = now + typingLockout
-            impulseTimes.removeAll()
-            publishReject("burst lockout")
-            return
+            impulseTimes.append(now)
+            impulseTimes = impulseTimes.filter { now - $0 < typingBurstWindow }
+            if impulseTimes.count >= 6 {
+                typingUntil = now + typingLockout
+                impulseTimes.removeAll()
+                publishReject("burst lockout")
+                return
+            }
         }
 
         let side = classifySides
@@ -282,6 +333,22 @@ final class TapDetector: ObservableObject {
         let reportX = meanAttackX
 
         lastTapTime = now
+
+        if musicalMode {
+            onHit?(MusicalHit(
+                onsetTimestamp: captureStart,
+                emitTimestamp: now,
+                hostTime: CACurrentMediaTime(),
+                side: side,
+                peakMagnitude: peak,
+                peakX: reportX,
+                noiseFloor: adaptiveNoise,
+                snr: snr,
+                sampleRateHz: localHz
+            ))
+            return
+        }
+
         currentTapCount += 1
         groupPeakMag = max(groupPeakMag, peak)
         groupPeakX = abs(reportX) > abs(groupPeakX) ? reportX : groupPeakX
