@@ -125,7 +125,8 @@ detector.onHit = { hit in
     hitCount += 1
     let gapMs = lastHitHost > 0 ? (hit.hostTime - lastHitHost) * 1000 : 0
     lastHitHost = hit.hostTime
-    let parked = hit.sampleRateHz < 450 ? "  PARKED" : ""
+    // 0 means no rate estimate yet (first ~20 samples), not a parked sensor.
+    let parked = hit.sampleRateHz > 0 && hit.sampleRateHz < 450 ? "  PARKED" : ""
     if opts.calibrate {
         print(String(format: "hit %4d  %@  peak %.4f g  vel %3d  snr %5.1f  lat %5.1f ms  gap %7.1f ms  %4.0f Hz%@",
                      hitCount, hit.side == .right ? "R" : "L", hit.peakMagnitude, Int(vel),
@@ -153,7 +154,9 @@ if opts.calibrate { print("  calibrate: tap soft / medium / hard; watch peak, la
 fflush(stdout)
 
 if opts.selfTest {
-    DispatchQueue.global(qos: .userInteractive).asyncAfter(deadline: .now() + 0.5) {
+    // 1.5 s: the sensor's first rate estimate lands at ~1 s, so the test hit
+    // reports a real Hz figure instead of 0.
+    DispatchQueue.global(qos: .userInteractive).asyncAfter(deadline: .now() + 1.5) {
         let t = CACurrentMediaTime()
         detector.onHit?(MusicalHit(
             onsetTimestamp: t - 0.010, emitTimestamp: t, hostTime: t,

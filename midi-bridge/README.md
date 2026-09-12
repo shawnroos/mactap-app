@@ -68,7 +68,7 @@ and the Max device side by side.
 | Flag | Default | Meaning |
 |---|---|---|
 | `--note N` | 36 | note for a hit |
-| `--sides` | off | left/right classification; right hits use `--note-right` (38) |
+| `--sides` | off | left/right classification; right hits use `--note-right` (38). Costs latency: the capture must hold 32 ms to read the side, against ~6 ms without it |
 | `--channel C` | 1 | MIDI channel |
 | `--gate MS` | 30 | note length |
 | `--sensitivity S` | 0.7 | detector threshold, 0..1 |
