@@ -193,8 +193,10 @@ final class TapDetector: ObservableObject {
         let keyedRecently = ignoreWhileTyping && (CACurrentMediaTime() - lastKeyTime) < 0.18
         let inTypingLockout = now < typingUntil || keyedRecently
         let inRefractory = (now - lastTapTime) < refractoryPeriod
-        let onset = (mag > threshold || delta > threshold)
-            && rawDelta > max(0.022, threshold * 0.65)
+        // The 0.022 g raw floor exists to ignore desk bumps while typing. Measured
+        // soft knocks peak at ~0.022 g, so in musical mode it would cut them.
+        let rawFloor = musicalMode ? threshold * 0.5 : max(0.022, threshold * 0.65)
+        let onset = (mag > threshold || delta > threshold) && rawDelta > rawFloor
 
         if capturing {
             absorb(sample)

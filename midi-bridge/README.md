@@ -71,9 +71,9 @@ and the Max device side by side.
 | `--sides` | off | left/right classification; right hits use `--note-right` (38). Costs latency: the capture must hold 32 ms to read the side, against ~6 ms without it |
 | `--channel C` | 1 | MIDI channel |
 | `--gate MS` | 30 | note length |
-| `--sensitivity S` | 0.7 | detector threshold, 0..1 |
+| `--sensitivity S` | 0.9 | detector threshold, 0..1 |
 | `--refractory MS` | 45 | minimum gap between hits (≈22 hits/s) |
-| `--floor G` / `--ceil G` | 0.020 / 0.055 | peak magnitude that maps to velocity 1 / 127 (measured: soft ≈ 0.023 g, hard ≈ 0.050 g) |
+| `--floor G` / `--ceil G` | 0.012 / 0.055 | peak magnitude that maps to velocity 1 / 127 (measured: soft ≈ 0.023 g, hard ≈ 0.050 g) |
 | `--curve X` | 0.6 | velocity curve exponent; 1 is linear |
 | `--osc HOST:PORT` | off | OSC output |
 | `--no-midi` | — | skip the CoreMIDI source |

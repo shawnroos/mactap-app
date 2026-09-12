@@ -13,10 +13,10 @@ struct Options {
     var noteLeft: UInt8 = 36      // C1 — Live Drum Rack pad 1
     var noteRight: UInt8 = 38     // D1 — pad 3
     var gateMs: Double = 30
-    var sensitivity: Double = 0.7
+    var sensitivity: Double = 0.9
     var refractoryMs: Double = 45
     var classifySides = false
-    var magFloor: Double = 0.02
+    var magFloor: Double = 0.012
     var magCeil: Double = 0.055
     var curve: Double = 0.6       // <1 lifts soft hits; 1 is linear
     var midi = true
@@ -34,10 +34,10 @@ struct Options {
             case "--note":        o.noteLeft = UInt8(next() ?? "36") ?? 36
             case "--note-right":  o.noteRight = UInt8(next() ?? "38") ?? 38
             case "--gate":        o.gateMs = Double(next() ?? "30") ?? 30
-            case "--sensitivity": o.sensitivity = Double(next() ?? "0.7") ?? 0.7
+            case "--sensitivity": o.sensitivity = Double(next() ?? "0.9") ?? 0.9
             case "--refractory":  o.refractoryMs = Double(next() ?? "45") ?? 45
             case "--sides":       o.classifySides = true
-            case "--floor":       o.magFloor = Double(next() ?? "0.02") ?? 0.02
+            case "--floor":       o.magFloor = Double(next() ?? "0.012") ?? 0.012
             case "--ceil":        o.magCeil = Double(next() ?? "0.055") ?? 0.055
             case "--curve":       o.curve = Double(next() ?? "0.6") ?? 0.6
             case "--no-midi":     o.midi = false
@@ -57,9 +57,9 @@ struct Options {
                   --sides           classify left/right (off: every hit is --note)
                   --channel C       MIDI channel 1-16 (default 1)
                   --gate MS         note length in ms (default 30)
-                  --sensitivity S   0..1 detector sensitivity (default 0.7)
+                  --sensitivity S   0..1 detector sensitivity (default 0.9)
                   --refractory MS   min gap between hits (default 45 → ~22 hits/s)
-                  --floor G         peak magnitude mapped to velocity 1 (default 0.02)
+                  --floor G         peak magnitude mapped to velocity 1 (default 0.012)
                   --ceil G          peak magnitude mapped to velocity 127 (default 0.055)
                   --curve X         velocity curve exponent (default 0.6; 1 = linear)
                   --osc HOST:PORT   also send OSC /mactap/hit (default 127.0.0.1:7400)
