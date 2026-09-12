@@ -142,6 +142,17 @@ if opts.controlPort != 0 && control == nil {
 var hitCount = 0
 var lastHitHost: Double = 0
 
+// Colour only when a person is watching; logs stay plain.
+let tty = isatty(STDOUT_FILENO) == 1
+func sideLabel(_ side: TapSide) -> String {
+    switch (side, tty) {
+    case (.left, true):  return "\u{1B}[1;36mL\u{1B}[0m"
+    case (.right, true): return "\u{1B}[1;35mR\u{1B}[0m"
+    case (.left, false): return "L"
+    case (.right, false): return "R"
+    }
+}
+
 detector.onHit = { hit in
     let note = hit.side == .right ? live.noteRight : live.noteLeft
     let vel = velocity(for: hit.peakMagnitude)
@@ -166,10 +177,10 @@ detector.onHit = { hit in
     let parked = hit.sampleRateHz > 0 && hit.sampleRateHz < 450 ? "  PARKED" : ""
     if opts.calibrate {
         print(String(format: "hit %4d  %@  peak %.4f g  vel %3d  snr %5.1f  lat %5.1f ms  gap %7.1f ms  %4.0f Hz%@",
-                     hitCount, hit.side == .right ? "R" : "L", hit.peakMagnitude, Int(vel),
+                     hitCount, sideLabel(hit.side), hit.peakMagnitude, Int(vel),
                      hit.snr, hit.latency * 1000, gapMs, hit.sampleRateHz, parked))
     } else {
-        print(String(format: "hit  %@  vel %3d  %4.0f Hz%@", hit.side == .right ? "R" : "L", Int(vel), hit.sampleRateHz, parked))
+        print(String(format: "hit  %@  vel %3d  %4.0f Hz%@", sideLabel(hit.side), Int(vel), hit.sampleRateHz, parked))
     }
     fflush(stdout)
 }
