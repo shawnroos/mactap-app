@@ -109,7 +109,7 @@ when the set loads, provided the dials send their value on load
 | `--note N` | 36 | note for a hit |
 | `--sides` | off | left/right from the gyro (a knock tilts the chassis); right hits use `--note-right` (38). Costs latency: the capture holds `--side-hold` ms to read the side, against ~6 ms without it |
 | `--invert` | off | swap left and right if your chassis reads mirrored |
-| `--side-hold MS` | 16 | how long a hit is held before its side is read; the app uses 32 |
+| `--side-hold MS` | 32 | how long a hit is held before its side is read. Measured: 32 ms read 20/20, 16 ms was near random — the tilt the gyro sees builds over ~30 ms |
 | `--channel C` | 1 | MIDI channel |
 | `--gate MS` | 30 | note length |
 | `--sensitivity S` | 0.9 | detector threshold, 0..1 |

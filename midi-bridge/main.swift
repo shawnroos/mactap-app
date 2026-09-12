@@ -17,7 +17,7 @@ struct Options {
     var refractoryMs: Double = 45
     var classifySides = false
     var invertSides = false
-    var sideHoldMs: Double = 16
+    var sideHoldMs: Double = 32
     var magFloor: Double = 0.012
     var magCeil: Double = 0.09
     var curve: Double = 0.6       // <1 lifts soft hits; 1 is linear
@@ -41,7 +41,7 @@ struct Options {
             case "--refractory":  o.refractoryMs = Double(next() ?? "45") ?? 45
             case "--sides":       o.classifySides = true
             case "--invert":      o.invertSides = true
-            case "--side-hold":   o.sideHoldMs = Double(next() ?? "16") ?? 16
+            case "--side-hold":   o.sideHoldMs = Double(next() ?? "32") ?? 32
             case "--floor":       o.magFloor = Double(next() ?? "0.012") ?? 0.012
             case "--ceil":        o.magCeil = Double(next() ?? "0.09") ?? 0.09
             case "--curve":       o.curve = Double(next() ?? "0.6") ?? 0.6
@@ -62,7 +62,7 @@ struct Options {
                   --note-right N    note for right-side hits with --sides (default 38)
                   --sides           classify left/right (off: every hit is --note)
                   --invert          swap left and right
-                  --side-hold MS    how long a hit is held to read its side with --sides (default 16)
+                  --side-hold MS    how long a hit is held to read its side with --sides (default 32; 16 misreads)
                   --channel C       MIDI channel 1-16 (default 1)
                   --gate MS         note length in ms (default 30)
                   --sensitivity S   0..1 detector sensitivity (default 0.9)
