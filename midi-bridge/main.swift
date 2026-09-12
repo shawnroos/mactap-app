@@ -190,8 +190,11 @@ detector.onHit = { hit in
                      hitCount, sideLabel(hit.side), hit.peakMagnitude, Int(vel),
                      hit.snr, hit.latency * 1000, gapMs, hit.sampleRateHz, parked))
         if live.classifySides {
-            print(String(format: "           x %+.4f  px %+.4f  z %+.4f   gyro x %+7.3f  y %+7.3f  z %+7.3f",
-                         hit.attackX, hit.peakX, hit.attackZ, hit.attackGX, hit.attackGY, hit.attackGZ))
+            // Tilt direction: 0° = pure +Y roll (left), ±180° = right, +90° = +X pitch.
+            let angle = atan2(hit.attackGY, hit.attackGX) * 180 / .pi
+            let tilt = hypot(hit.attackGX, hit.attackGY)
+            print(String(format: "           x %+.4f  px %+.4f  z %+.4f   gyro x %+7.3f  y %+7.3f  z %+7.3f   tilt %5.2f @ %+4.0f°",
+                         hit.attackX, hit.peakX, hit.attackZ, hit.attackGX, hit.attackGY, hit.attackGZ, tilt, angle))
         }
     } else {
         print(String(format: "hit  %@  vel %3d  %4.0f Hz%@", sideLabel(hit.side), Int(vel), hit.sampleRateHz, parked))
