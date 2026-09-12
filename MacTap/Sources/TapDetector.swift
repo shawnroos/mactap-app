@@ -155,6 +155,14 @@ final class TapDetector: ObservableObject {
             .store(in: &cancellables)
     }
 
+    /// Settings are read on the detector queue; write them there too.
+    func update(_ block: @escaping (TapDetector) -> Void) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            block(self)
+        }
+    }
+
     func notifyTyping() {
         queue.async { [weak self] in
             self?.lastKeyTime = CACurrentMediaTime()

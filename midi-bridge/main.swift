@@ -23,6 +23,7 @@ struct Options {
     var osc: (host: String, port: UInt16)? = nil
     var calibrate = false
     var selfTest = false
+    var controlPort: UInt16 = 7401
 
     static func parse(_ args: [String]) -> Options {
         var o = Options()
@@ -43,6 +44,7 @@ struct Options {
             case "--no-midi":     o.midi = false
             case "--calibrate":   o.calibrate = true
             case "--test":        o.selfTest = true
+            case "--control":     o.controlPort = UInt16(next() ?? "7401") ?? 7401
             case "--osc":
                 let spec = next() ?? "127.0.0.1:7400"
                 let parts = spec.split(separator: ":")
@@ -66,6 +68,7 @@ struct Options {
                   --no-midi         skip the CoreMIDI source
                   --calibrate       print every hit's peak, latency and sample rate
                   --test            fire one synthetic hit at startup (checks MIDI/OSC plumbing)
+                  --control PORT    listen for OSC settings on this port (default 7401; 0 = off)
                 """)
                 exit(0)
             default:
@@ -79,6 +82,9 @@ struct Options {
 }
 
 let opts = Options.parse(Array(CommandLine.arguments.dropFirst()))
+// Dials in the Max device change these while running. Written only on the
+// detector queue (via detector.update), read there by onHit.
+var live = opts
 
 let midi: MIDIOut? = opts.midi ? MIDIOut(name: "MacTap") : nil
 if opts.midi && midi == nil {
@@ -96,22 +102,53 @@ detector.classifySides = opts.classifySides
 detector.ignoreWhileTyping = false
 
 func velocity(for magnitude: Double) -> UInt8 {
-    let span = max(opts.magCeil - opts.magFloor, 1e-6)
-    let t = min(max((magnitude - opts.magFloor) / span, 0), 1)
-    let shaped = pow(t, opts.curve)
+    let span = max(live.magCeil - live.magFloor, 1e-6)
+    let t = min(max((magnitude - live.magFloor) / span, 0), 1)
+    let shaped = pow(t, live.curve)
     return UInt8(max(1, min(127, Int((shaped * 126).rounded()) + 1)))
+}
+
+
+func number(_ args: [Any]) -> Double? {
+    guard let a = args.first else { return nil }
+    if let f = a as? Float { return Double(f) }
+    if let i = a as? Int32 { return Double(i) }
+    return nil
+}
+
+let control: OSCIn? = opts.controlPort == 0 ? nil : OSCIn(port: opts.controlPort) { address, args in
+    guard let v = number(args) else { return }
+    detector.update { d in
+        switch address {
+        case "/mactap/sensitivity": d.sensitivity = min(max(v, 0), 1); live.sensitivity = d.sensitivity
+        case "/mactap/refractory":  d.refractoryPeriod = max(v, 5) / 1000; live.refractoryMs = max(v, 5)
+        case "/mactap/sides":       d.classifySides = v >= 0.5; live.classifySides = d.classifySides
+        case "/mactap/floor":       live.magFloor = max(v, 0)
+        case "/mactap/ceil":        live.magCeil = max(v, 0.001)
+        case "/mactap/curve":       live.curve = min(max(v, 0.1), 4)
+        case "/mactap/gate":        live.gateMs = min(max(v, 1), 2000)
+        case "/mactap/note":        live.noteLeft = UInt8(min(max(v, 0), 127))
+        case "/mactap/note-right":  live.noteRight = UInt8(min(max(v, 0), 127))
+        default: return
+        }
+        print(String(format: "set %@ %.3f", address.dropFirst("/mactap/".count) as NSString, v))
+        fflush(stdout)
+    }
+}
+if opts.controlPort != 0 && control == nil {
+    FileHandle.standardError.write("could not bind control port \(opts.controlPort) (another bridge running?)\n".data(using: .utf8)!)
 }
 
 var hitCount = 0
 var lastHitHost: Double = 0
 
 detector.onHit = { hit in
-    let note = hit.side == .right ? opts.noteRight : opts.noteLeft
+    let note = hit.side == .right ? live.noteRight : live.noteLeft
     let vel = velocity(for: hit.peakMagnitude)
 
     midi?.noteOn(channel: opts.channel, note: note, velocity: vel)
     if let midi {
-        DispatchQueue.global(qos: .userInteractive).asyncAfter(deadline: .now() + opts.gateMs / 1000) {
+        DispatchQueue.global(qos: .userInteractive).asyncAfter(deadline: .now() + live.gateMs / 1000) {
             midi.noteOff(channel: opts.channel, note: note)
         }
     }
@@ -149,6 +186,7 @@ guard sensor.start() else {
 print("mactap-midi: streaming from SPU IMU")
 if let midi { print("  MIDI source: \"\(midi.name)\"  note \(opts.noteLeft)\(opts.classifySides ? "/\(opts.noteRight)" : "")  ch \(opts.channel + 1)  gate \(Int(opts.gateMs)) ms") }
 if let osc { print("  OSC: \(osc.host):\(osc.port)  /mactap/hit <side:int> <vel:int> <peak:float> <lat_ms:float>") }
+if let control { print("  control: udp \(control.port)  /mactap/sensitivity|floor|ceil|curve|gate|note|note-right|refractory|sides <float>") }
 print("  velocity: floor \(opts.magFloor) g → 1, ceil \(opts.magCeil) g → 127, curve \(opts.curve)")
 if opts.calibrate { print("  calibrate: tap soft / medium / hard; watch peak, lat and Hz. Ctrl-C to stop.") }
 fflush(stdout)

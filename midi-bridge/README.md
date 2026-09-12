@@ -38,6 +38,9 @@ Each hit sends one message:
 /mactap/hit <side:int 0=L 1=R> <velocity:int 1-127> <peak:float g> <latency:float ms>
 ```
 
+Every hit reads `L` and uses `--note` unless `--sides` is on (or the
+device sends `/mactap/sides 1`).
+
 Minimal MIDI-effect device:
 
 ```
@@ -63,6 +66,37 @@ Minimal MIDI-effect device:
 Do both at once (MIDI source and OSC) if you want Live's raw note path
 and the Max device side by side.
 
+### Dials in the device
+
+The bridge listens for settings on UDP 7401 (`--control PORT`, 0 to
+turn off). A dial in the device sends one float and the change applies
+to the next knock:
+
+```
+[live.dial]  0..1                  [live.dial]  0.01..0.1
+ |                                  |
+[prepend /mactap/sensitivity]      [prepend /mactap/ceil]
+ |                                  |
+[udpsend 127.0.0.1 7401]           [udpsend 127.0.0.1 7401]
+```
+
+| Address | Value | Same as flag |
+|---|---|---|
+| `/mactap/sensitivity` | 0..1 | `--sensitivity` |
+| `/mactap/floor` | g | `--floor` |
+| `/mactap/ceil` | g | `--ceil` |
+| `/mactap/curve` | 0.1..4 | `--curve` |
+| `/mactap/gate` | ms | `--gate` |
+| `/mactap/note` | 0..127 | `--note` |
+| `/mactap/note-right` | 0..127 | `--note-right` |
+| `/mactap/refractory` | ms | `--refractory` |
+| `/mactap/sides` | 0 or 1 | `--sides` |
+
+The bridge prints `set sensitivity 0.850` for each change it accepts.
+Settings are not saved; the device's own parameter state restores them
+when the set loads, provided the dials send their value on load
+(`[loadbang]` → `[live.dial]` outputs its stored value).
+
 ## Options
 
 | Flag | Default | Meaning |
@@ -79,6 +113,7 @@ and the Max device side by side.
 | `--no-midi` | — | skip the CoreMIDI source |
 | `--calibrate` | — | print peak, SNR, latency, gap and sample rate per hit |
 | `--test` | — | fire one synthetic hit at start to check the plumbing |
+| `--control PORT` | 7401 | OSC settings listener; 0 turns it off |
 
 ## Calibrating
 
@@ -86,8 +121,7 @@ The defaults come from one 148-hit session on a MacBook palm rest (peaks 0.022�
 medium and hard twenty times each, and set `--floor` to a soft peak and
 `--ceil` to a hard one.
 
-`--calibrate` also prints the accelerometer rate once a second and at
-every hit. `PARKED` means macOS idled the sensor below 450 Hz, which
+`--calibrate` prints the accelerometer rate at start and on every hit. `PARKED` means macOS idled the sensor below 450 Hz, which
 under-samples an 8–25 ms attack. The keep-alive in `SensorManager`
 should hold it at ~800 Hz on a still chassis; if a hit after a long rest
 shows `PARKED`, that is the problem to fix next.
