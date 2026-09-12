@@ -91,6 +91,7 @@ to the next knock:
 | `/mactap/note-right` | 0..127 | `--note-right` |
 | `/mactap/refractory` | ms | `--refractory` |
 | `/mactap/sides` | 0 or 1 | `--sides` |
+| `/mactap/invert` | 0 or 1 | `--invert` |
 
 The bridge prints `set sensitivity 0.850` for each change it accepts.
 Settings are not saved; the device's own parameter state restores them
@@ -102,7 +103,8 @@ when the set loads, provided the dials send their value on load
 | Flag | Default | Meaning |
 |---|---|---|
 | `--note N` | 36 | note for a hit |
-| `--sides` | off | left/right classification; right hits use `--note-right` (38). Costs latency: the capture must hold 32 ms to read the side, against ~6 ms without it |
+| `--sides` | off | left/right from the gyro (a knock tilts the chassis); right hits use `--note-right` (38). Costs latency: the capture holds 32 ms to read the side, against ~6 ms without it |
+| `--invert` | off | swap left and right if your chassis reads mirrored |
 | `--channel C` | 1 | MIDI channel |
 | `--gate MS` | 30 | note length |
 | `--sensitivity S` | 0.9 | detector threshold, 0..1 |

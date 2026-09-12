@@ -95,6 +95,7 @@ final class TapDetector: ObservableObject {
     private var emaMag: Double = 0
     private var emaRaw: Double = 1.0
     private var lastTapTime: Double = -1
+    private var lastTapPeak: Double = 0
     private var currentTapCount: Int = 0
     private var currentSide: TapSide = .left
     private var groupDeadline: Double = 0
@@ -329,6 +330,12 @@ final class TapDetector: ObservableObject {
             publishReject("slow pulse")
             return
         }
+        // A hard knock rings the chassis for ~150 ms at ~20% of its peak;
+        // real roll hits measured 58-76% of the previous one.
+        if musicalMode && now - lastTapTime < 0.25 && peak < lastTapPeak * 0.35 {
+            publishReject("echo")
+            return
+        }
         if snr < 1.6 {
             publishReject("low SNR")
             return
@@ -353,12 +360,23 @@ final class TapDetector: ObservableObject {
             }
         }
 
-        let side = classifySides
-            ? classifySide(meanX: meanAttackX, peakX: attackPeakX)
-            : .left
+        let meanAttackGY = weightSum > 1e-9 ? attackSumGY / weightSum : 0
+        let side: TapSide
+        if !classifySides {
+            side = .left
+        } else if musicalMode && abs(meanAttackGY) >= 0.1 {
+            // Measured on 20 labelled knocks: a knock tilts the chassis, and
+            // gyro Y read the side 19/20 (one near zero) where lateral X read
+            // 17/20. Sign convention is per machine; invertSides flips it.
+            let left = meanAttackGY > 0
+            side = (left != invertSides) ? .left : .right
+        } else {
+            side = classifySide(meanX: meanAttackX, peakX: attackPeakX)
+        }
         let reportX = meanAttackX
 
         lastTapTime = now
+        lastTapPeak = peak
 
         if musicalMode {
             onHit?(MusicalHit(

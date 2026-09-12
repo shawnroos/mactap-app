@@ -16,6 +16,7 @@ struct Options {
     var sensitivity: Double = 0.9
     var refractoryMs: Double = 45
     var classifySides = false
+    var invertSides = false
     var magFloor: Double = 0.012
     var magCeil: Double = 0.055
     var curve: Double = 0.6       // <1 lifts soft hits; 1 is linear
@@ -38,6 +39,7 @@ struct Options {
             case "--sensitivity": o.sensitivity = Double(next() ?? "0.9") ?? 0.9
             case "--refractory":  o.refractoryMs = Double(next() ?? "45") ?? 45
             case "--sides":       o.classifySides = true
+            case "--invert":      o.invertSides = true
             case "--floor":       o.magFloor = Double(next() ?? "0.012") ?? 0.012
             case "--ceil":        o.magCeil = Double(next() ?? "0.055") ?? 0.055
             case "--curve":       o.curve = Double(next() ?? "0.6") ?? 0.6
@@ -57,6 +59,7 @@ struct Options {
                   --note N          MIDI note for a hit (default 36 = C1)
                   --note-right N    note for right-side hits with --sides (default 38)
                   --sides           classify left/right (off: every hit is --note)
+                  --invert          swap left and right
                   --channel C       MIDI channel 1-16 (default 1)
                   --gate MS         note length in ms (default 30)
                   --sensitivity S   0..1 detector sensitivity (default 0.9)
@@ -99,6 +102,7 @@ detector.musicalMode = true
 detector.sensitivity = opts.sensitivity
 detector.refractoryPeriod = opts.refractoryMs / 1000
 detector.classifySides = opts.classifySides
+detector.invertSides = opts.invertSides
 detector.ignoreWhileTyping = false
 
 func velocity(for magnitude: Double) -> UInt8 {
@@ -123,6 +127,7 @@ let control: OSCIn? = opts.controlPort == 0 ? nil : OSCIn(port: opts.controlPort
         case "/mactap/sensitivity": d.sensitivity = min(max(v, 0), 1); live.sensitivity = d.sensitivity
         case "/mactap/refractory":  d.refractoryPeriod = max(v, 5) / 1000; live.refractoryMs = max(v, 5)
         case "/mactap/sides":       d.classifySides = v >= 0.5; live.classifySides = d.classifySides
+        case "/mactap/invert":      d.invertSides = v >= 0.5; live.invertSides = d.invertSides
         case "/mactap/floor":       live.magFloor = max(v, 0)
         case "/mactap/ceil":        live.magCeil = max(v, 0.001)
         case "/mactap/curve":       live.curve = min(max(v, 0.1), 4)
@@ -201,7 +206,7 @@ guard sensor.start() else {
 print("mactap-midi: streaming from SPU IMU")
 if let midi { print("  MIDI source: \"\(midi.name)\"  note \(opts.noteLeft)\(opts.classifySides ? "/\(opts.noteRight)" : "")  ch \(opts.channel + 1)  gate \(Int(opts.gateMs)) ms") }
 if let osc { print("  OSC: \(osc.host):\(osc.port)  /mactap/hit <side:int> <vel:int> <peak:float> <lat_ms:float>") }
-if let control { print("  control: udp \(control.port)  /mactap/sensitivity|floor|ceil|curve|gate|note|note-right|refractory|sides <float>") }
+if let control { print("  control: udp \(control.port)  /mactap/sensitivity|floor|ceil|curve|gate|note|note-right|refractory|sides|invert <float>") }
 print("  velocity: floor \(opts.magFloor) g → 1, ceil \(opts.magCeil) g → 127, curve \(opts.curve)")
 if opts.calibrate { print("  calibrate: tap soft / medium / hard; watch peak, lat and Hz. Ctrl-C to stop.") }
 fflush(stdout)
