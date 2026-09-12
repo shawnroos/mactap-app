@@ -17,8 +17,9 @@ struct Options {
     var refractoryMs: Double = 45
     var classifySides = false
     var invertSides = false
+    var sideHoldMs: Double = 16
     var magFloor: Double = 0.012
-    var magCeil: Double = 0.055
+    var magCeil: Double = 0.09
     var curve: Double = 0.6       // <1 lifts soft hits; 1 is linear
     var midi = true
     var osc: (host: String, port: UInt16)? = nil
@@ -40,8 +41,9 @@ struct Options {
             case "--refractory":  o.refractoryMs = Double(next() ?? "45") ?? 45
             case "--sides":       o.classifySides = true
             case "--invert":      o.invertSides = true
+            case "--side-hold":   o.sideHoldMs = Double(next() ?? "16") ?? 16
             case "--floor":       o.magFloor = Double(next() ?? "0.012") ?? 0.012
-            case "--ceil":        o.magCeil = Double(next() ?? "0.055") ?? 0.055
+            case "--ceil":        o.magCeil = Double(next() ?? "0.09") ?? 0.09
             case "--curve":       o.curve = Double(next() ?? "0.6") ?? 0.6
             case "--no-midi":     o.midi = false
             case "--calibrate":   o.calibrate = true
@@ -60,12 +62,13 @@ struct Options {
                   --note-right N    note for right-side hits with --sides (default 38)
                   --sides           classify left/right (off: every hit is --note)
                   --invert          swap left and right
+                  --side-hold MS    how long a hit is held to read its side with --sides (default 16)
                   --channel C       MIDI channel 1-16 (default 1)
                   --gate MS         note length in ms (default 30)
                   --sensitivity S   0..1 detector sensitivity (default 0.9)
                   --refractory MS   min gap between hits (default 45 → ~22 hits/s)
                   --floor G         peak magnitude mapped to velocity 1 (default 0.012)
-                  --ceil G          peak magnitude mapped to velocity 127 (default 0.055)
+                  --ceil G          peak magnitude mapped to velocity 127 (default 0.09)
                   --curve X         velocity curve exponent (default 0.6; 1 = linear)
                   --osc HOST:PORT   also send OSC /mactap/hit (default 127.0.0.1:7400)
                   --no-midi         skip the CoreMIDI source
@@ -103,6 +106,7 @@ detector.sensitivity = opts.sensitivity
 detector.refractoryPeriod = opts.refractoryMs / 1000
 detector.classifySides = opts.classifySides
 detector.invertSides = opts.invertSides
+detector.sideCaptureTime = opts.sideHoldMs / 1000
 detector.ignoreWhileTyping = false
 
 func velocity(for magnitude: Double) -> UInt8 {
@@ -128,6 +132,7 @@ let control: OSCIn? = opts.controlPort == 0 ? nil : OSCIn(port: opts.controlPort
         case "/mactap/refractory":  d.refractoryPeriod = max(v, 5) / 1000; live.refractoryMs = max(v, 5)
         case "/mactap/sides":       d.classifySides = v >= 0.5; live.classifySides = d.classifySides
         case "/mactap/invert":      d.invertSides = v >= 0.5; live.invertSides = d.invertSides
+        case "/mactap/side-hold":   d.sideCaptureTime = min(max(v, 4), 60) / 1000; live.sideHoldMs = d.sideCaptureTime * 1000
         case "/mactap/floor":       live.magFloor = max(v, 0)
         case "/mactap/ceil":        live.magCeil = max(v, 0.001)
         case "/mactap/curve":       live.curve = min(max(v, 0.1), 4)
@@ -206,7 +211,7 @@ guard sensor.start() else {
 print("mactap-midi: streaming from SPU IMU")
 if let midi { print("  MIDI source: \"\(midi.name)\"  note \(opts.noteLeft)\(opts.classifySides ? "/\(opts.noteRight)" : "")  ch \(opts.channel + 1)  gate \(Int(opts.gateMs)) ms") }
 if let osc { print("  OSC: \(osc.host):\(osc.port)  /mactap/hit <side:int> <vel:int> <peak:float> <lat_ms:float>") }
-if let control { print("  control: udp \(control.port)  /mactap/sensitivity|floor|ceil|curve|gate|note|note-right|refractory|sides|invert <float>") }
+if let control { print("  control: udp \(control.port)  /mactap/sensitivity|floor|ceil|curve|gate|note|note-right|refractory|sides|invert|side-hold <float>") }
 print("  velocity: floor \(opts.magFloor) g → 1, ceil \(opts.magCeil) g → 127, curve \(opts.curve)")
 if opts.calibrate { print("  calibrate: tap soft / medium / hard; watch peak, lat and Hz. Ctrl-C to stop.") }
 fflush(stdout)

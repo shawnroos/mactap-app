@@ -39,7 +39,10 @@ Each hit sends one message:
 ```
 
 Every hit reads `L` and uses `--note` unless `--sides` is on (or the
-device sends `/mactap/sides 1`).
+device sends `/mactap/sides 1`). The side comes from the gyro: a knock
+tilts the chassis, and the sign of the roll rate in the first few
+milliseconds read 39/40 labelled knocks correctly, with the lateral
+accelerometer as fallback for the rest.
 
 Minimal MIDI-effect device:
 
@@ -92,6 +95,7 @@ to the next knock:
 | `/mactap/refractory` | ms | `--refractory` |
 | `/mactap/sides` | 0 or 1 | `--sides` |
 | `/mactap/invert` | 0 or 1 | `--invert` |
+| `/mactap/side-hold` | ms | `--side-hold` |
 
 The bridge prints `set sensitivity 0.850` for each change it accepts.
 Settings are not saved; the device's own parameter state restores them
@@ -103,13 +107,14 @@ when the set loads, provided the dials send their value on load
 | Flag | Default | Meaning |
 |---|---|---|
 | `--note N` | 36 | note for a hit |
-| `--sides` | off | left/right from the gyro (a knock tilts the chassis); right hits use `--note-right` (38). Costs latency: the capture holds 32 ms to read the side, against ~6 ms without it |
+| `--sides` | off | left/right from the gyro (a knock tilts the chassis); right hits use `--note-right` (38). Costs latency: the capture holds `--side-hold` ms to read the side, against ~6 ms without it |
 | `--invert` | off | swap left and right if your chassis reads mirrored |
+| `--side-hold MS` | 16 | how long a hit is held before its side is read; the app uses 32 |
 | `--channel C` | 1 | MIDI channel |
 | `--gate MS` | 30 | note length |
 | `--sensitivity S` | 0.9 | detector threshold, 0..1 |
 | `--refractory MS` | 45 | minimum gap between hits (≈22 hits/s) |
-| `--floor G` / `--ceil G` | 0.012 / 0.055 | peak magnitude that maps to velocity 1 / 127 (measured: soft ≈ 0.023 g, hard ≈ 0.050 g) |
+| `--floor G` / `--ceil G` | 0.012 / 0.09 | peak magnitude that maps to velocity 1 / 127 (measured: soft ≈ 0.023 g, hard ≈ 0.09 g) |
 | `--curve X` | 0.6 | velocity curve exponent; 1 is linear |
 | `--osc HOST:PORT` | off | OSC output |
 | `--no-midi` | — | skip the CoreMIDI source |

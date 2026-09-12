@@ -85,7 +85,9 @@ final class TapDetector: ObservableObject {
     /// 0.07 caps the roll at ~14 hits/s, which 16ths above 200 bpm exceed.
     var refractoryPeriod: Double = 0.07
     private let maxPulseWidth: Double = 0.12
-    private let minCaptureTime: Double = 0.032
+    /// How long a capture holds before the side is read. 32 ms is the app's
+    /// value; the gyro sign is large enough that musical mode can go shorter.
+    var sideCaptureTime: Double = 0.032
     private let attackWindow: Double = 0.034
     private let attackTau: Double = 0.011
     private let typingBurstWindow: Double = 0.42
@@ -220,7 +222,7 @@ final class TapDetector: ObservableObject {
         if capturing {
             absorb(sample)
             let elapsed = now - captureStart
-            let quiet = mag < capturePeakMag * 0.35 && elapsed >= (classifySides ? minCaptureTime : 0.006)
+            let quiet = mag < capturePeakMag * 0.35 && elapsed >= (classifySides ? sideCaptureTime : 0.006)
             if quiet || elapsed > maxPulseWidth || captureSamples > 100 {
                 finalizeCapture(now: now, inTypingLockout: inTypingLockout, keyedRecently: keyedRecently)
             }
