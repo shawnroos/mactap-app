@@ -73,7 +73,7 @@ and the Max device side by side.
 | `--gate MS` | 30 | note length |
 | `--sensitivity S` | 0.7 | detector threshold, 0..1 |
 | `--refractory MS` | 45 | minimum gap between hits (≈22 hits/s) |
-| `--floor G` / `--ceil G` | 0.02 / 0.50 | peak magnitude that maps to velocity 1 / 127 |
+| `--floor G` / `--ceil G` | 0.020 / 0.055 | peak magnitude that maps to velocity 1 / 127 (measured: soft ≈ 0.023 g, hard ≈ 0.050 g) |
 | `--curve X` | 0.6 | velocity curve exponent; 1 is linear |
 | `--osc HOST:PORT` | off | OSC output |
 | `--no-midi` | — | skip the CoreMIDI source |
@@ -82,7 +82,7 @@ and the Max device side by side.
 
 ## Calibrating
 
-The velocity floor and ceiling are guesses. Run `--calibrate`, tap soft,
+The defaults come from one 148-hit session on a MacBook palm rest (peaks 0.022–0.051 g). Run `--calibrate`, tap soft,
 medium and hard twenty times each, and set `--floor` to a soft peak and
 `--ceil` to a hard one.
 

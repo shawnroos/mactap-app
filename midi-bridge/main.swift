@@ -17,7 +17,7 @@ struct Options {
     var refractoryMs: Double = 45
     var classifySides = false
     var magFloor: Double = 0.02
-    var magCeil: Double = 0.50
+    var magCeil: Double = 0.055
     var curve: Double = 0.6       // <1 lifts soft hits; 1 is linear
     var midi = true
     var osc: (host: String, port: UInt16)? = nil
@@ -38,7 +38,7 @@ struct Options {
             case "--refractory":  o.refractoryMs = Double(next() ?? "45") ?? 45
             case "--sides":       o.classifySides = true
             case "--floor":       o.magFloor = Double(next() ?? "0.02") ?? 0.02
-            case "--ceil":        o.magCeil = Double(next() ?? "0.5") ?? 0.5
+            case "--ceil":        o.magCeil = Double(next() ?? "0.055") ?? 0.055
             case "--curve":       o.curve = Double(next() ?? "0.6") ?? 0.6
             case "--no-midi":     o.midi = false
             case "--calibrate":   o.calibrate = true
@@ -60,7 +60,7 @@ struct Options {
                   --sensitivity S   0..1 detector sensitivity (default 0.7)
                   --refractory MS   min gap between hits (default 45 → ~22 hits/s)
                   --floor G         peak magnitude mapped to velocity 1 (default 0.02)
-                  --ceil G          peak magnitude mapped to velocity 127 (default 0.50)
+                  --ceil G          peak magnitude mapped to velocity 127 (default 0.055)
                   --curve X         velocity curve exponent (default 0.6; 1 = linear)
                   --osc HOST:PORT   also send OSC /mactap/hit (default 127.0.0.1:7400)
                   --no-midi         skip the CoreMIDI source
