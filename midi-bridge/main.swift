@@ -273,12 +273,13 @@ detector.onHit = { hit in
         print(String(format: "hit %4d  %@  peak %.4f g  vel %3d  snr %5.1f  lat %5.1f ms  gap %7.1f ms  %4.0f Hz%@",
                      hitCount, label, hit.peakMagnitude, Int(vel),
                      hit.snr, hit.latency * 1000, gapMs, hit.sampleRateHz, parked))
-        if live.classifySides {
+        if live.classifySides || zoneModel != nil {
             // Tilt direction: 0° = pure +Y roll (left), ±180° = right, +90° = +X pitch.
             let angle = atan2(hit.attackGY, hit.attackGX) * 180 / .pi
             let tilt = hypot(hit.attackGX, hit.attackGY)
-            print(String(format: "           x %+.4f  px %+.4f  z %+.4f   gyro x %+7.3f  y %+7.3f  z %+7.3f   tilt %5.2f @ %+4.0f°",
-                         hit.attackX, hit.peakX, hit.attackZ, hit.attackGX, hit.attackGY, hit.attackGZ, tilt, angle))
+            let f = ZoneFeatures(hit: hit)
+            print(String(format: "           x %+.4f  px %+.4f  z %+.4f   gyro x %+7.3f  y %+7.3f  z %+7.3f   tilt %5.2f @ %+4.0f°   per-g gy %+6.1f gx %+6.1f z %+5.2f",
+                         hit.attackX, hit.peakX, hit.attackZ, hit.attackGX, hit.attackGY, hit.attackGZ, tilt, angle, f.gyPerG, f.gxPerG, f.zPerG))
         }
     } else {
         print(String(format: "hit  %@  vel %3d  %4.0f Hz%@", label, Int(vel), hit.sampleRateHz, parked))
