@@ -179,6 +179,10 @@ detector.onHit = { hit in
         print(String(format: "hit %4d  %@  peak %.4f g  vel %3d  snr %5.1f  lat %5.1f ms  gap %7.1f ms  %4.0f Hz%@",
                      hitCount, sideLabel(hit.side), hit.peakMagnitude, Int(vel),
                      hit.snr, hit.latency * 1000, gapMs, hit.sampleRateHz, parked))
+        if live.classifySides {
+            print(String(format: "           x %+.4f  px %+.4f  z %+.4f   gyro x %+7.3f  y %+7.3f  z %+7.3f",
+                         hit.attackX, hit.peakX, hit.attackZ, hit.attackGX, hit.attackGY, hit.attackGZ))
+        }
     } else {
         print(String(format: "hit  %@  vel %3d  %4.0f Hz%@", sideLabel(hit.side), Int(vel), hit.sampleRateHz, parked))
     }
@@ -210,6 +214,7 @@ if opts.selfTest {
         detector.onHit?(MusicalHit(
             onsetTimestamp: t - 0.010, emitTimestamp: t, hostTime: t,
             side: .left, peakMagnitude: 0.2, peakX: 0.01,
+            attackX: 0.01, attackZ: 0.02, attackGX: 0, attackGY: 0, attackGZ: 0,
             noiseFloor: 0.006, snr: 30, sampleRateHz: sensor.sampleRateHz
         ))
     }

@@ -30,6 +30,13 @@ struct MusicalHit: Sendable {
     let side: TapSide
     let peakMagnitude: Double
     let peakX: Double
+    /// Energy-weighted mean of each axis over the first ~34 ms. X is the
+    /// lateral accel the side vote uses; gx/gy/gz are the gyro, unused so far.
+    let attackX: Double
+    let attackZ: Double
+    let attackGX: Double
+    let attackGY: Double
+    let attackGZ: Double
     let noiseFloor: Double
     let snr: Double
     /// Accelerometer rate at the moment of the hit. Well under ~800 means the
@@ -104,6 +111,9 @@ final class TapDetector: ObservableObject {
     private var attackPeakX: Double = 0
     private var attackAbsX: Double = 0
     private var attackSumZ: Double = 0
+    private var attackSumGX: Double = 0
+    private var attackSumGY: Double = 0
+    private var attackSumGZ: Double = 0
     private var captureSimulated = false
     private var groupSimulated = false
 
@@ -272,6 +282,9 @@ final class TapDetector: ObservableObject {
         attackPeakX = 0
         attackAbsX = 0
         attackSumZ = 0
+        attackSumGX = 0
+        attackSumGY = 0
+        attackSumGZ = 0
         captureSimulated = sample.isSimulated
         accumulateAttack(sample)
     }
@@ -293,6 +306,9 @@ final class TapDetector: ObservableObject {
         weightedX += dx * w
         weightSum += w
         attackSumZ += sample.z * w
+        attackSumGX += sample.gx * w
+        attackSumGY += sample.gy * w
+        attackSumGZ += sample.gz * w
         if abs(dx) > attackAbsX {
             attackAbsX = abs(dx)
             attackPeakX = dx
@@ -351,7 +367,12 @@ final class TapDetector: ObservableObject {
                 hostTime: CACurrentMediaTime(),
                 side: side,
                 peakMagnitude: peak,
-                peakX: reportX,
+                peakX: attackPeakX,
+                attackX: meanAttackX,
+                attackZ: meanAttackZ,
+                attackGX: weightSum > 1e-9 ? attackSumGX / weightSum : 0,
+                attackGY: weightSum > 1e-9 ? attackSumGY / weightSum : 0,
+                attackGZ: weightSum > 1e-9 ? attackSumGZ / weightSum : 0,
                 noiseFloor: adaptiveNoise,
                 snr: snr,
                 sampleRateHz: localHz
@@ -417,6 +438,9 @@ final class TapDetector: ObservableObject {
         attackPeakX = 0
         attackAbsX = 0
         attackSumZ = 0
+        attackSumGX = 0
+        attackSumGY = 0
+        attackSumGZ = 0
         captureSimulated = false
     }
 
