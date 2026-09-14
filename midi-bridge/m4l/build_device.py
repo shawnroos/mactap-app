@@ -197,7 +197,27 @@ label("L/R", 108, 114, 36)
 for i, d in enumerate(dial_ids + [gate, note_l, note_r, sides]):
     connect(trig, d, 7 - i, 0)
 
-label("MacTap  —  run: mactap-midi --osc 127.0.0.1:7400", 8, 140, 290)
+# ---------------------------------------------------------------- bridge launcher
+comment("Node starts mactap-midi from the device folder and stops it on unload", 20, 340)
+node = obj("node.script mactap-launch.js @autostart 1 @watch 0", 20, 364, 300, 1, 2, ["", ""])
+route_status = obj("route status", 20, 394, 80, 2, 2)
+status_set = obj("prepend set", 20, 424, 80, 2, 1)
+status_text = box("comment", 20, 454, 280, 18, "bridge: starting", 1, 0, presentation=1,
+                  presentation_rect=[8.0, 140.0, 290.0, 18.0], fontsize=9.0)
+connect(node, route_status, 0, 0)
+connect(route_status, status_set, 0, 0)
+connect(status_set, status_text)
+restart = box("live.text", 340, 424, 52, 15, "restart", 1, 2, ["", ""], presentation=1,
+              presentation_rect=[236.0, 96.0, 56.0, 15.0], texton="restart",
+              mode=0, parameter_enable=1, varname="restart",
+              saved_attribute_attributes={"valueof": {"parameter_longname": "Restart bridge",
+                                                      "parameter_shortname": "Restart",
+                                                      "parameter_type": 2, "parameter_mmax": 1,
+                                                      "parameter_enum": ["off", "on"],
+                                                      "parameter_invisible": 1}})
+restart_msg = box("message", 340, 454, 50, 20, "restart", 1, 1, [""])
+connect(restart, restart_msg, 0, 0)
+connect(restart_msg, node, 0, 0)
 
 patcher = {
     "patcher": {

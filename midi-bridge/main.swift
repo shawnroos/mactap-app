@@ -202,7 +202,29 @@ let control: OSCIn? = opts.controlPort == 0 ? nil : OSCIn(port: opts.controlPort
     }
 }
 if opts.controlPort != 0 && control == nil {
-    FileHandle.standardError.write("could not bind control port \(opts.controlPort) (another bridge running?)\n".data(using: .utf8)!)
+    // One bridge per machine: a second would publish a second MIDI source and
+    // double every knock over OSC.
+    FileHandle.standardError.write("another mactap-midi is already running (control port \(opts.controlPort) is taken)\n".data(using: .utf8)!)
+    exit(3)
+}
+
+// Launched from a Max for Live device, stdin is a pipe from Node; when the
+// device unloads or Live quits the pipe closes and the bridge must go too,
+// or it lingers as an orphan holding the sensor and the ports.
+if isatty(STDIN_FILENO) == 0 {
+    let watcher = Thread {
+        var buf = [UInt8](repeating: 0, count: 64)
+        while true {
+            let n = read(STDIN_FILENO, &buf, buf.count)
+            if n <= 0 { break }
+        }
+        print("parent closed — stopping")
+        fflush(stdout)
+        sensor.stop()
+        exit(0)
+    }
+    watcher.name = "MacTap.parent-watch"
+    watcher.start()
 }
 
 var hitCount = 0

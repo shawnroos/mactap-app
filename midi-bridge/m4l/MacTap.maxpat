@@ -1263,12 +1263,90 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						0.0,
-						0.0,
-						290.0,
+						20.0,
+						340.0,
+						493.0,
 						18.0
 					],
-					"text": "MacTap  \u2014  run: mactap-midi --osc 127.0.0.1:7400",
+					"text": "Node starts mactap-midi from the device folder and stops it on unload",
+					"textjustification": 0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-51",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"patching_rect": [
+						20.0,
+						364.0,
+						300.0,
+						20.0
+					],
+					"outlettype": [
+						"",
+						""
+					],
+					"text": "node.script mactap-launch.js @autostart 1 @watch 0",
+					"fontname": "Arial Bold",
+					"fontsize": 10.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-52",
+					"maxclass": "newobj",
+					"numinlets": 2,
+					"numoutlets": 2,
+					"patching_rect": [
+						20.0,
+						394.0,
+						80.0,
+						20.0
+					],
+					"outlettype": [
+						"",
+						""
+					],
+					"text": "route status",
+					"fontname": "Arial Bold",
+					"fontsize": 10.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-53",
+					"maxclass": "newobj",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"patching_rect": [
+						20.0,
+						424.0,
+						80.0,
+						20.0
+					],
+					"outlettype": [
+						""
+					],
+					"text": "prepend set",
+					"fontname": "Arial Bold",
+					"fontsize": 10.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-54",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						20.0,
+						454.0,
+						280.0,
+						18.0
+					],
+					"text": "bridge: starting",
 					"presentation": 1,
 					"presentation_rect": [
 						8.0,
@@ -1276,8 +1354,68 @@
 						290.0,
 						18.0
 					],
-					"textjustification": 1,
 					"fontsize": 9.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-55",
+					"maxclass": "live.text",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"patching_rect": [
+						340.0,
+						424.0,
+						52.0,
+						15.0
+					],
+					"outlettype": [
+						"",
+						""
+					],
+					"text": "restart",
+					"presentation": 1,
+					"presentation_rect": [
+						236.0,
+						96.0,
+						56.0,
+						15.0
+					],
+					"texton": "restart",
+					"mode": 0,
+					"parameter_enable": 1,
+					"varname": "restart",
+					"saved_attribute_attributes": {
+						"valueof": {
+							"parameter_longname": "Restart bridge",
+							"parameter_shortname": "Restart",
+							"parameter_type": 2,
+							"parameter_mmax": 1,
+							"parameter_enum": [
+								"off",
+								"on"
+							],
+							"parameter_invisible": 1
+						}
+					}
+				}
+			},
+			{
+				"box": {
+					"id": "obj-56",
+					"maxclass": "message",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"patching_rect": [
+						340.0,
+						454.0,
+						50.0,
+						20.0
+					],
+					"outlettype": [
+						""
+					],
+					"text": "restart"
 				}
 			}
 		],
@@ -1821,14 +1959,74 @@
 						0
 					]
 				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-51",
+						0
+					],
+					"destination": [
+						"obj-52",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-52",
+						0
+					],
+					"destination": [
+						"obj-53",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-53",
+						0
+					],
+					"destination": [
+						"obj-54",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-55",
+						0
+					],
+					"destination": [
+						"obj-56",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-56",
+						0
+					],
+					"destination": [
+						"obj-51",
+						0
+					]
+				}
 			}
 		],
 		"dependency_cache": [],
 		"latency": 0,
 		"project": {
 			"version": 1,
-			"creationdate": 3872064238,
-			"modificationdate": 3872064238,
+			"creationdate": 3872222627,
+			"modificationdate": 3872222627,
 			"viewrect": [
 				0.0,
 				0.0,
